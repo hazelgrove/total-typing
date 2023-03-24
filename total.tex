@@ -14,7 +14,7 @@
 
 \renewcommand{\thesection}{\Alph{section}}
 \section{Total Typing}
-This is a judgmental framework for error localization. 'Marked types' internalize type errors, and their judgements and metafunctions entirely internalize error determination. This leaves the typing judgments entirely responsible for typing information flow: Each is total and without branching.
+This is a judgmental framework for error localization. 'Marked types' internalize type errors, and their judgements and metafunctions entirely internalize error determination. This leaves the typing judgments entirely responsible for typing information flow: Each is total and without branching. This corresponds roughly to the current hazel implementation. The judgements of the 'Marked Types' section to follow correspond to the $Typ.re$ and $Info.re$; technically errors are not subsumed into types in the implementation; marked types here correspond more closely to the notion of 'status' from $Info.re$. The judgements of the the Total Typing section correspond very closely to the current $Statics.re$. 
 
 \subsection{Syntax}
 \[\begin{array}{rrcl}
@@ -31,6 +31,8 @@ This is a judgmental framework for error localization. 'Marked types' internaliz
                      \mid           \EPair{\PMV}{\PMV}
                      \mid           \PMV : \TMV
                      \mid           \EEHole \\
+  \TMName  & \TMV  & \Coloneqq & \TUnknown^{m} \mid \TBool \mid \TArrow{\TMV}{\TMV} \mid \TProd{\TMV}{\TMV} \\
+  \normalfont\textsf{Mark}     & m & \Coloneqq & \TUnknownErr{ins} \mid \TUnknownErr{free} \mid \TUnknownErr{internal} \mid \TUnknownErr{err} \mid \TUnknown 
 \end{array}\]
 
 
@@ -48,11 +50,11 @@ This is a judgmental framework for error localization. 'Marked types' internaliz
 \begin{mathpar}
   \judgment{ }{
     \consistent{\TUnknown^{\_}}{\TMV}
-  }{TCUnknown1}
+  }{TCUnknownL}
 
   \judgment{ }{
     \consistent{\TMV}{\TUnknown^{\_}}
-  }{TCUnknown2}
+  }{TCUnknownR}
 
   \judgment{ }{
     \consistent{\TMV}{\TMV}
@@ -85,78 +87,6 @@ This is a judgmental framework for error localization. 'Marked types' internaliz
   \joinsTo{(\TProd{\TMV_1}{\TMV_2})}{(\TProd{\TMV_1'}{\TMV_2'})}{\TProd{(\TJoin{\TMV_1}{\TMV_1'})}{(\TJoin{\TMV_2}{\TMV_2'})}}
 \end{array}\] \\
 %
-\judgbox{\ensuremath{\TJoinFix{\TMV_1}{\TMV_2}} = \TMV} $\TMV_1$ and $\TMV_2$ have fix-join $\TMV$ (could be a metafn)
-%
-\begin{mathpar}
-    \judgment{
-        \consistent{\TMV_1}{\TMV_2} \\
-        \TMV_1 \neq \TUnknownErr{\_} \\
-        \TMV_2 \neq \TUnknownErr{\_}
-    }{
-        \TJoinFix{\TMV_1}{\TMV_2} = \TJoin{\TMV_1}{\TMV_2}
-    }{FixJoin}
-
-    \judgment{
-        \inconsistent{\TMV_1}{\TMV_2}
-    }{
-        \TJoinFix{\TMV_1}{\TMV_2} = \TUnknownErr{fix}
-    }{FixJoinFail}
-
-    \judgment{ }{
-        \TJoinFix{\TUnknownErr{err}}{\_} = \TUnknownErr{err}
-    }{FixJoinThruL}
-
-    \judgment{ }{
-        \TJoinFix{\_}{\TUnknownErr{err}} = \TUnknownErr{err}
-    }{FixJoinThruR}
-\end{mathpar}
-%
-\judgbox{\ensuremath{\TJoinIf{\TMV_1}{\TMV_2}} = \TMV} $\TMV_1$ and $\TMV_2$ have if-join $\TMV$ v  (could be a metafn)
-%
-\begin{mathpar}
-    \judgment{
-        \consistent{\TMV_1}{\TMV_2}
-    }{
-        \TJoinIf{\TMV_1}{\TMV_2} = \TJoin{\TMV_1}{\TMV_2}
-    }{IfJoin}
-
-    \judgment{
-        \inconsistent{\TMV_1}{\TMV_2}
-    }{
-        \TJoinIf{\TMV_1}{\TMV_2} = \TUnknownErr{fix}
-    }{IfJoinFail}
-\end{mathpar}
-%
-\judgbox{\ensuremath{\TLookup{\ctx}{x}} = \TMV} x has type $\TMV$ in $\ctx$
-%
-\begin{mathpar}
-    \judgment{
-        x : \TMV \in \ctx
-    }{
-        \TLookup{\ctx}{x} = \TMV
-    }{Lookup}
-    
-    \judgment{
-        x : \TMV \not\in \ctx
-    }{
-        \TLookup{\ctx}{x} = \TUnknownErr{free}
-    }{LookupFail}
-\end{mathpar}
-%
-\judgbox{\ensuremath{\TMV^{***} = \TMV'}} $\TMV$ forgives to $\TMV'$
-%
-\begin{mathpar}
-    \judgment{
-        \TMV \neq \TUnknownErr{\_}
-    }{
-        \TMV^{***} = \TMV'
-    }{Forgive1}
-    
-    \judgment{ }{
-        \TUnknownErr{\_}^{***} = \TUnknown
-    }{Forgive2}
-\end{mathpar}
-%
 \judgbox{\ensuremath{\matchedArrow{\TMV}{\TMV_1}{\TMV_2}}} $\TMV$ has matched arrow type $\TArrow{\TMV_1}{\TMV_2}$
 %
 \begin{mathpar}
@@ -175,7 +105,7 @@ This is a judgmental framework for error localization. 'Marked types' internaliz
   }{TMAArrFail}
 \end{mathpar} \\
 
-\judgbox{\ensuremath{\matchedProd{\TMV}{\TMV_1}{\TMV_2}}} $\TMV$ has matched binary product type $\TProd{\TMV_1}{\TMV_2}$
+\judgbox{\ensuremath{\matchedProd{\TMV}{\TMV_1}{\TMV_2}}} $\TMV$ has matched product type $\TProd{\TMV_1}{\TMV_2}$
 %
 \begin{mathpar}
   \judgment{ }{
@@ -191,81 +121,137 @@ This is a judgmental framework for error localization. 'Marked types' internaliz
   }{
     \matchedProd{\TMV}{\TUnknown}{\TUnknown}
   }{TMPProdFail}
-\end{mathpar} \\
+\end{mathpar}
+%
+\judgbox{\ensuremath{\TJoinIf{\TMV_1}{\TMV_2}} = \TMV} $\TMV_1$ and $\TMV_2$ have if-join $\TMV$
+%
+\begin{mathpar}
+    \judgment{
+        \consistent{\TMV_1}{\TMV_2}
+    }{
+        \TJoinIf{\TMV_1}{\TMV_2} = \TJoin{\TMV_1}{\TMV_2}
+    }{IfJoin}
+
+    \judgment{
+        \inconsistent{\TMV_1}{\TMV_2}
+    }{
+        \TJoinIf{\TMV_1}{\TMV_2} = \TUnknownErr{if}
+    }{IfJoinFail}
+\end{mathpar}
+%
+\judgbox{\ensuremath{\TJoinFix{\TMV_1}{\TMV_2}} = \TMV} $\TMV_1$ and $\TMV_2$ have fix-join $\TMV$
+%
+\begin{mathpar}
+    \judgment{
+        \consistent{\TMV_1}{\TMV_2} \\
+        \TMV_1 \neq \TUnknownErr{\_} \\
+        \TMV_2 \neq \TUnknownErr{\_}
+    }{
+        \TJoinFix{\TMV_1}{\TMV_2} = \TJoin{\TMV_1}{\TMV_2}
+    }{FixJoin}
+
+    \judgment{
+        \inconsistent{\TMV_1}{\TMV_2}
+    }{
+        \TJoinFix{\TMV_1}{\TMV_2} = \TUnknownErr{fix}
+    }{FixJoinFail}
+
+    \judgment{ }{
+        \TJoinFix{\TUnknownErr{err}}{\_} = \TUnknownErr{err}
+    }{FixJoinPassL}
+
+    \judgment{ }{
+        \TJoinFix{\_}{\TUnknownErr{err}} = \TUnknownErr{err}
+    }{FixJoinPassR}
+\end{mathpar}
+%
+\judgbox{\ensuremath{\TLookup{\ctx}{x}} = \TMV} x has type $\TMV$ in $\ctx$
+%
+\begin{mathpar}
+    \judgment{
+        x : \TMV \in \ctx
+    }{
+        \TLookup{\ctx}{x} = \TMV
+    }{Lookup}
+    
+    \judgment{
+        x : \TMV \not\in \ctx
+    }{
+        \TLookup{\ctx}{x} = \TUnknownErr{free}
+    }{LookupFail}
+\end{mathpar}
+%
+\judgbox{\ensuremath{\TForgive{\TMV} = \TMV'}} $\TMV$ forgives to $\TMV'$
+%
+\begin{mathpar}
+    \judgment{
+        \TMV \neq \TUnknownErr{\_}
+    }{
+        \TForgive{\TMV} = \TMV
+    }{Forgive1}
+    
+    \judgment{ }{
+        \TForgive{\TUnknownErr{\_}} = \TUnknown
+    }{Forgive2}
+\end{mathpar}
 
 \newpage
 
 
 \subsection{Total Typing}
-\judgbox{\ctxUniType{\ctx}{\TMV_{E}}{\EMV}{\TMV_{self}}} Under expectation $\TMV_{E}$, expression $\EMV$ actualizes $\TMV_{self}$
-\\
+\[\begin{array}{rrcl}
+  \EMName  & \EMV  & \Coloneqq & x \mid \EFun{x}{\EMV} \mid {\EMV}({\EMV}) \\
+           &       & \mid         &
+           \ELet{p}{\EMV}{\EMV} \mid
+           \EPair{\EMV}{\EMV} \\
+           &       & \mid         &
+           \ETrue \mid
+           \EFalse \mid
+           \EIf{\EMV}{\EMV}{\EMV} \mid
+           \EEHole \\
+  \PMName  & \PMV  & \Coloneqq & x 
+                     \mid           \EPair{\PMV}{\PMV}
+                     \mid           \PMV : \TMV
+                     \mid           \EEHole \\
+\end{array}\]
+%
 \judgbox{\ctxUniActualType{\ctx}{\TMV_{E}}{\EMV}{\TMV_{fix}}} Under expectation $\TMV_{E}$, expression $\EMV$ has fixed type $\TMV_{fix}$
 \\
-\judgbox{\ctxUniTypePat{\ctx}{\TMV_{E}}{p}{\TMV_{self}}{\ctx'}} Under expectation $\TMV_{E}$, pattern $\PMV$ actualizes $\TMV_{self}$ and produces context {\ctx'}
-\\
 \judgbox{\ctxUniActualTypePat{\ctx}{\TMV_{E}}{p}{\TMV_{fix}}{\ctx'}} Under expectation $\TMV_{E}$, pattern $\PMV$ has fixed type $\TMV_{fix}$ and produces context {\ctx'}
-%
+\\
 \begin{mathpar}
 
   \judgment{
-    \ctxUniType{\ctx}{\TMV_{exp}}{\EMV}{\TUnknownErr{err}}
+    \ctxUniType{\ctx}{\TMV_{E}}{\EMV}{\TMV_{self}}
   }{
-    \ctxUniActualType{\ctx}{\TMV_{exp}}{\EMV}{\TUnknownErr{err}}
-  }{FixThru}
-    
-  \judgment{
-    \ctxUniType{\ctx}{\TMV_{exp}}{\EMV}{\TMV_{self}} \\
-    \consistent{\TMV_{exp}}{\TMV_{self}}
-  }{
-    \ctxUniActualType{\ctx}{\TMV_{exp}}{\EMV}{\TJoin{\TMV_{exp}}{\TMV_{self}}}
+    \ctxUniActualType{\ctx}{\TMV_{E}}{\EMV}{\TJoinFix{\TMV_{E}}{\TMV_{self}}}
   }{Fix}
 
   \judgment{
-    \ctxUniType{\ctx}{\TMV_{exp}}{\EMV}{\TMV_{self}} \\
-    \inconsistent{\TMV_{exp}}{\TMV_{self}}
+    \ctxUniTypePat{\ctx}{\TMV_{E}}{\EMV}{\TMV_{self}}{\ctx'}
   }{
-    \ctxUniActualType{\ctx}{\TMV_{exp}}{\EMV}{\TUnknownErr{ins}}
-  }{FixErr}
- \\\\
+    \ctxUniActualTypePat{\ctx}{\TMV_{E}}{\EMV}{\TJoinFix{\TMV_{E}}{\TMV_{self}}}{\ctx'}
+  }{PatFix}
+  
+\end{mathpar}
+\\
+\judgbox{\ctxUniType{\ctx}{\TMV_{E}}{\EMV}{\TMV_{self}}} Under expectation $\TMV_{E}$, expression $\EMV$ actualizes $\TMV_{self}$
+%
+\begin{mathpar}
+
   \judgment{ }{
     \ctxUniType{\ctx}{\_}{\EEHole}{\TUnknown}
     %{\TUnknown^{\EEHole}}
   }{Hole}
-
+  
   \judgment{ }{
     \ctxUniType{\ctx}{\_}{\EFalse/\ETrue}{\TBool}
   }{False/True}
 
-  \judgment{ 
-    x: \TMV \in \Gamma
-  }{
-    \ctxUniType{\ctx}{\_}{x}{\TMV}
+  \judgment{  }{
+    \ctxUniType{\ctx}{\_}{x}{\TLookup{\ctx}{x}}
   }{Var}
 
-    \judgment{ 
-    x: \TMV \not\in \Gamma \\
-  }{
-    \ctxUniType{\ctx}{\_}{x}{\TUnknownErr{free}}
-  }{VarErr}
- \\\\
-   \judgment{
-    \ctxUniActualType{\ctx}{\TBool}{e_{}}{\_} \\
-    \ctxUniActualType{\ctx}{\TMV_{E}}{e_{cons}}{\TMV_{cons}} \\\\
-    \ctxUniActualType{\ctx}{\TMV_{E}}{e_{alt}}{\TMV_{alt}} \\
-    \consistent{\TMV_{cons}}{\TMV_{alt}}
-  }{
-    \ctxUniType{\ctx}{\TMV_{E}}{\ECIf{\EMV}{\EMV_{cons}}{\EMV_{alt}}}{\TJoin{\TMV_{cons}}{\TMV_{alt}}}
-  }{If}
-  ~~~~~~~~~~~~~~
-  \judgment{
-    \ctxUniActualType{\ctx}{\TBool}{e_{}}{\_} \\
-    \ctxUniActualType{\ctx}{\TMV_{E}}{e_{cons}}{\TMV_{cons}} \\\\
-    \ctxUniActualType{\ctx}{\TMV_{E}}{e_{alt}}{\TMV_{alt}} \\
-    \inconsistent{\TMV_{cons}}{\TMV_{alt}}
-  }{
-    \ctxUniType{\ctx}{\TMV_{E}}{\ECIf{\EMV}{\EMV_{cons}}{\EMV_{alt}}}{\TUnknownErr{internal}}
-  }{IfErr}
-  \\\\
   \judgment{ 
     \matchedProd{\TMV_{E}}{\TMV_1}{\TMV_2} \\\\
     \ctxUniActualType{\ctx}{\TMV_1}{e_1}{\TMV_1'} \\
@@ -275,6 +261,14 @@ This is a judgmental framework for error localization. 'Marked types' internaliz
   }{Pair}
 
    \judgment{
+    \ctxUniActualType{\ctx}{\TBool}{e_{}}{\_} \\\\
+    \ctxUniActualType{\ctx}{\TMV_{E}}{e_{cons}}{\TMV_{cons}} \\
+    \ctxUniActualType{\ctx}{\TMV_{E}}{e_{alt}}{\TMV_{alt}}
+  }{
+    \ctxUniType{\ctx}{\TMV_{E}}{\ECIf{\EMV}{\EMV_{cons}}{\EMV_{alt}}}{\TJoinIf{\TMV_{cons}}{\TMV_{alt}}}
+  }{If}
+
+ \judgment{
     \ctxUniActualType{\ctx}{\TArrow{\TUnknown}{\TUnknown}}{\EMV}{\TMV} \\\\
     \matchedArrow{\TMV}{\TMV_{in}}{\TMV_{out}} \\
     \ctxUniActualType{\ctx}{\TMV_{in}}{e_{arg}}{\_}
@@ -298,45 +292,20 @@ This is a judgmental framework for error localization. 'Marked types' internaliz
   }{
     \ctxUniType{\ctx}{\TMV_{E}}{\ELet{\PMV}{\EMV_{def}}{\EMV_{}}}{\TMV_{}}
   }{Let}
-  % TODO: type fn *** (make sure errs dont get into ctx!!)
-  % TODO: type join + distinguish between join variants
-  % TODO: total match judgements
+\end{mathpar}
+\\
+\judgbox{\ctxUniTypePat{\ctx}{\TMV_{E}}{p}{\TMV_{self}}{\ctx'}} Under expectation $\TMV_{E}$, pattern $\PMV$ actualizes $\TMV_{self}$ and produces context {\ctx'}
 
-  \\\\
-    \judgment{
-    \ctxUniTypePat{\ctx}{\TMV_{exp}}{\EMV}{\TUnknownErr{err}}{\ctx'}
-  }{
-    \ctxUniActualTypePat{\ctx}{\TMV_{exp}}{\EMV}{\TUnknownErr{err}}{\ctx'}
-  }{PatFixThru}
-  ~~~~~~~~
-  \judgment{
-    \ctxUniTypePat{\ctx}{\TMV_{exp}}{\EMV}{\TMV_{self}}{\ctx'} \\
-    \consistent{\TMV_{exp}}{\TMV_{self}}
-  }{
-    \ctxUniActualTypePat{\ctx}{\TMV_{exp}}{\EMV}{\TJoin{\TMV_{exp}}{\TMV_{self}}}{\ctx'}
-  }{PatFix}
-  ~~~~~~~~
-  \judgment{
-    \ctxUniTypePat{\ctx}{\TMV_{exp}}{\EMV}{\TMV_{self}}{\ctx'} \\
-    \inconsistent{\TMV_{exp}}{\TMV_{self}}
-  }{
-    \ctxUniActualTypePat{\ctx}{\TMV_{exp}}{\EMV}{\TUnknownErr{ins}}{\ctx'}
-  }{PatFixErr}
-  \\\\
+\begin{mathpar}
+
   \judgment{
   }{
     \ctxUniTypePat{\ctx}{\_}{\EEHole}{\TUnknown}{\ctx}
   }{PatHole}
 
   \judgment{ }{
-    \ctxUniTypePat{\ctx}{\TMV_{E}}{x}{\TMV_{self}}{\ctx, x : \TMV_{E}^{***}}
+    \ctxUniTypePat{\ctx}{\TMV_{E}}{x}{\TUnknown}{\ctx, x : \TForgive{\TMV_{E}}}
   }{PatVar}
-
-  \judgment{
-    \ctxUniActualTypePat{\ctx}{\TMV_{E}}{\PMV}{\_}{\ctx'}
-  }{
-    \ctxUniTypePat{\ctx}{\_}{\PMV: \TMV}{\TMV}{\ctx'}
-  }{PatAnn}
 
   \judgment{
     \matchedProd{\TMV_{E}}{\TMV_1}{\TMV_2} \\\\
@@ -345,12 +314,14 @@ This is a judgmental framework for error localization. 'Marked types' internaliz
   }{
     \ctxUniTypePat{\ctx}{\TMV_{E}}{(p_1,p_2)}{\TProd{\TMV_1'}{\TMV_2'}}{\ctx_2}
   }{PatPair}
+
+  \judgment{
+    \ctxUniActualTypePat{\ctx}{\TMV_{E}}{\PMV}{\_}{\ctx'}
+  }{
+    \ctxUniTypePat{\ctx}{\_}{\PMV: \TMV}{\TMV}{\ctx'}
+  }{PatAnn}
+
 \end{mathpar}
-
-
-
-
-
 
 
 \end{document}
