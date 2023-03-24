@@ -1,0 +1,56 @@
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage{libertinust1math}
+  \usepackage{libertine}
+\else
+  \usepackage{libertinus}
+\fi
+\usepackage[scaled=0.8]{FiraMono}
+
+\usepackage{accents}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsfonts}
+\usepackage{amsthm}
+\usepackage{bclogo}
+\usepackage{thmtools}
+\usepackage{mathtools}
+\usepackage{mathpartir}
+\usepackage{stmaryrd}
+\usepackage{bm}
+\usepackage{relsize}
+\usepackage{centernot}
+
+\usepackage{hyperref}
+\usepackage{enumitem}
+
+% rounded boxes and colors
+\usepackage{scalerel}
+\usepackage[dvipsnames]{xcolor}
+\usepackage[most]{tcolorbox}
+\newtcolorbox{mybox}[2][]
+{
+  on line,
+  hbox,
+  boxsep=0pt,
+  left=1pt,
+  right=1pt,
+  top=1pt,
+  bottom=1pt,
+  colframe=white,
+  colback=#2
+  #1,
+}
+\newcommand\goodcolor[2]{%
+  \protect\leavevmode
+  \begingroup
+    \color{#1}%
+    #2%
+  \endgroup
+}
+
+\declaretheorem[name=Theorem, parent=section]{theorem}
+\declaretheorem[name=Lemma, parent=theorem]{lemma}
+\declaretheorem[name=Definition, parent=section, style=definition]{definition}
+
+\input{preamble/symbols}

@@ -1,0 +1,356 @@
+\PassOptionsToPackage{usenames,dvipsnames}{xcolor}
+\documentclass{article}
+\input{preamble/preamble}
+\usepackage[margin=1in]{geometry}
+
+\makeatletter
+\renewcommand\tableofcontents{%
+    \@starttoc{toc}%
+}
+\makeatother
+
+\begin{document}
+\tableofcontents
+
+\renewcommand{\thesection}{\Alph{section}}
+\section{Total Typing}
+This is a judgmental framework for error localization. 'Marked types' internalize type errors, and their judgements and metafunctions entirely internalize error determination. This leaves the typing judgments entirely responsible for typing information flow: Each is total and without branching.
+
+\subsection{Syntax}
+\[\begin{array}{rrcl}
+  \EMName  & \EMV  & \Coloneqq & x \mid \EFun{x}{\EMV} \mid {\EMV}({\EMV}) \\
+           &       & \mid         &
+           \ELet{p}{\EMV}{\EMV} \mid
+           \EPair{\EMV}{\EMV} \\
+           &       & \mid         &
+           \ETrue \mid
+           \EFalse \mid
+           \EIf{\EMV}{\EMV}{\EMV} \mid
+           \EEHole \\
+  \PMName  & \PMV  & \Coloneqq & x 
+                     \mid           \EPair{\PMV}{\PMV}
+                     \mid           \PMV : \TMV
+                     \mid           \EEHole \\
+\end{array}\]
+
+
+\newpage
+
+\subsection{Marked Types}
+
+\[\begin{array}{rrcl}
+  \normalfont\textsf{Mark}     & m & \Coloneqq & \TUnknownErr{ins} \mid \TUnknownErr{free} \mid \TUnknownErr{internal} \mid \TUnknownErr{err} \mid \TUnknown \\
+  \TMName  & \TMV  & \Coloneqq & \TUnknown^{m} \mid \TBool \mid \TArrow{\TMV}{\TMV} \mid \TProd{\TMV}{\TMV} \\
+\end{array}\]
+%
+\judgbox{\ensuremath{\consistent{\TMV_1}{\TMV_2}}} $\TMV_1$ is consistent with $\TMV_2$
+%
+\begin{mathpar}
+  \judgment{ }{
+    \consistent{\TUnknown^{\_}}{\TMV}
+  }{TCUnknown1}
+
+  \judgment{ }{
+    \consistent{\TMV}{\TUnknown^{\_}}
+  }{TCUnknown2}
+
+  \judgment{ }{
+    \consistent{\TMV}{\TMV}
+  }{TCRefl}
+
+  \judgment{
+    \consistent{\TMV_1}{\TMV_1'} \\
+    \consistent{\TMV_2}{\TMV_2'} \\
+  }{
+    \consistent{\TArrow{\TMV_1}{\TMV_2}}{\TArrow{\TMV_1'}{\TMV_2'}}
+  }{TCArr}
+
+  \judgment{
+    \consistent{\TMV_1}{\TMV_1'} \\
+    \consistent{\TMV_2}{\TMV_2'} \\
+  }{
+    \consistent{\TProd{\TMV_1}{\TMV_2}}{\TProd{\TMV_1'}{\TMV_2'}}
+  }{TCProd}
+\end{mathpar} \\
+%
+\judgbox{\ensuremath{\TJoin{\TMV_1}{\TMV_2}}} is a \emph{partial} metafunction defined as follows:
+%
+\newcommand{\joinsTo}[3]{\ensuremath{\TJoin{#1}{#2} & = & #3}}
+\[\begin{array}{rcl}
+  \joinsTo{\TUnknown^{\_}}{\TMV}{\TMV} \\
+  \joinsTo{\TMV}{\TUnknown^{\_}}{\TMV} \\
+  \joinsTo{\TNum}{\TNum}{\TNum} \\
+  \joinsTo{\TBool}{\TBool}{\TBool} \\
+  \joinsTo{(\TArrow{\TMV_1}{\TMV_2})}{(\TArrow{\TMV_1'}{\TMV_2'})}{\TArrow{(\TJoin{\TMV_1}{\TMV_1'})}{(\TJoin{\TMV_2}{\TMV_2'})}} \\
+  \joinsTo{(\TProd{\TMV_1}{\TMV_2})}{(\TProd{\TMV_1'}{\TMV_2'})}{\TProd{(\TJoin{\TMV_1}{\TMV_1'})}{(\TJoin{\TMV_2}{\TMV_2'})}}
+\end{array}\] \\
+%
+\judgbox{\ensuremath{\TJoinFix{\TMV_1}{\TMV_2}} = \TMV} $\TMV_1$ and $\TMV_2$ have fix-join $\TMV$ (could be a metafn)
+%
+\begin{mathpar}
+    \judgment{
+        \consistent{\TMV_1}{\TMV_2} \\
+        \TMV_1 \neq \TUnknownErr{\_} \\
+        \TMV_2 \neq \TUnknownErr{\_}
+    }{
+        \TJoinFix{\TMV_1}{\TMV_2} = \TJoin{\TMV_1}{\TMV_2}
+    }{FixJoin}
+
+    \judgment{
+        \inconsistent{\TMV_1}{\TMV_2}
+    }{
+        \TJoinFix{\TMV_1}{\TMV_2} = \TUnknownErr{fix}
+    }{FixJoinFail}
+
+    \judgment{ }{
+        \TJoinFix{\TUnknownErr{err}}{\_} = \TUnknownErr{err}
+    }{FixJoinThruL}
+
+    \judgment{ }{
+        \TJoinFix{\_}{\TUnknownErr{err}} = \TUnknownErr{err}
+    }{FixJoinThruR}
+\end{mathpar}
+%
+\judgbox{\ensuremath{\TJoinIf{\TMV_1}{\TMV_2}} = \TMV} $\TMV_1$ and $\TMV_2$ have if-join $\TMV$ v  (could be a metafn)
+%
+\begin{mathpar}
+    \judgment{
+        \consistent{\TMV_1}{\TMV_2}
+    }{
+        \TJoinIf{\TMV_1}{\TMV_2} = \TJoin{\TMV_1}{\TMV_2}
+    }{IfJoin}
+
+    \judgment{
+        \inconsistent{\TMV_1}{\TMV_2}
+    }{
+        \TJoinIf{\TMV_1}{\TMV_2} = \TUnknownErr{fix}
+    }{IfJoinFail}
+\end{mathpar}
+%
+\judgbox{\ensuremath{\TLookup{\ctx}{x}} = \TMV} x has type $\TMV$ in $\ctx$
+%
+\begin{mathpar}
+    \judgment{
+        x : \TMV \in \ctx
+    }{
+        \TLookup{\ctx}{x} = \TMV
+    }{Lookup}
+    
+    \judgment{
+        x : \TMV \not\in \ctx
+    }{
+        \TLookup{\ctx}{x} = \TUnknownErr{free}
+    }{LookupFail}
+\end{mathpar}
+%
+\judgbox{\ensuremath{\TMV^{***} = \TMV'}} $\TMV$ forgives to $\TMV'$
+%
+\begin{mathpar}
+    \judgment{
+        \TMV \neq \TUnknownErr{\_}
+    }{
+        \TMV^{***} = \TMV'
+    }{Forgive1}
+    
+    \judgment{ }{
+        \TUnknownErr{\_}^{***} = \TUnknown
+    }{Forgive2}
+\end{mathpar}
+%
+\judgbox{\ensuremath{\matchedArrow{\TMV}{\TMV_1}{\TMV_2}}} $\TMV$ has matched arrow type $\TArrow{\TMV_1}{\TMV_2}$
+%
+\begin{mathpar}
+  \judgment{ }{
+    \matchedArrow{\TUnknown}{\TUnknown}{\TUnknown}
+  }{TMAUnknown}
+
+  \judgment{ }{
+    \matchedArrow{\TArrow{\TMV_1}{\TMV_2}}{\TMV_1}{\TMV_2}
+  }{TMAArr}
+
+  \judgment{
+    \inconsistent{\TMV}{\TArrow{\TUnknown}{\TUnknown}}
+  }{
+    \matchedArrow{\TMV}{\TUnknown}{\TUnknown}
+  }{TMAArrFail}
+\end{mathpar} \\
+
+\judgbox{\ensuremath{\matchedProd{\TMV}{\TMV_1}{\TMV_2}}} $\TMV$ has matched binary product type $\TProd{\TMV_1}{\TMV_2}$
+%
+\begin{mathpar}
+  \judgment{ }{
+    \matchedProd{\TUnknown}{\TUnknown}{\TUnknown}
+  }{TMPUnknown}
+
+  \judgment{ }{
+    \matchedProd{\TProd{\TMV_1}{\TMV_2}}{\TMV_1}{\TMV_2}
+  }{TMPProd}
+
+    \judgment{
+    \inconsistent{\TMV}{\TProd{\TUnknown}{\TUnknown}}
+  }{
+    \matchedProd{\TMV}{\TUnknown}{\TUnknown}
+  }{TMPProdFail}
+\end{mathpar} \\
+
+\newpage
+
+
+\subsection{Total Typing}
+\judgbox{\ctxUniType{\ctx}{\TMV_{E}}{\EMV}{\TMV_{self}}} Under expectation $\TMV_{E}$, expression $\EMV$ actualizes $\TMV_{self}$
+\\
+\judgbox{\ctxUniActualType{\ctx}{\TMV_{E}}{\EMV}{\TMV_{fix}}} Under expectation $\TMV_{E}$, expression $\EMV$ has fixed type $\TMV_{fix}$
+\\
+\judgbox{\ctxUniTypePat{\ctx}{\TMV_{E}}{p}{\TMV_{self}}{\ctx'}} Under expectation $\TMV_{E}$, pattern $\PMV$ actualizes $\TMV_{self}$ and produces context {\ctx'}
+\\
+\judgbox{\ctxUniActualTypePat{\ctx}{\TMV_{E}}{p}{\TMV_{fix}}{\ctx'}} Under expectation $\TMV_{E}$, pattern $\PMV$ has fixed type $\TMV_{fix}$ and produces context {\ctx'}
+%
+\begin{mathpar}
+
+  \judgment{
+    \ctxUniType{\ctx}{\TMV_{exp}}{\EMV}{\TUnknownErr{err}}
+  }{
+    \ctxUniActualType{\ctx}{\TMV_{exp}}{\EMV}{\TUnknownErr{err}}
+  }{FixThru}
+    
+  \judgment{
+    \ctxUniType{\ctx}{\TMV_{exp}}{\EMV}{\TMV_{self}} \\
+    \consistent{\TMV_{exp}}{\TMV_{self}}
+  }{
+    \ctxUniActualType{\ctx}{\TMV_{exp}}{\EMV}{\TJoin{\TMV_{exp}}{\TMV_{self}}}
+  }{Fix}
+
+  \judgment{
+    \ctxUniType{\ctx}{\TMV_{exp}}{\EMV}{\TMV_{self}} \\
+    \inconsistent{\TMV_{exp}}{\TMV_{self}}
+  }{
+    \ctxUniActualType{\ctx}{\TMV_{exp}}{\EMV}{\TUnknownErr{ins}}
+  }{FixErr}
+ \\\\
+  \judgment{ }{
+    \ctxUniType{\ctx}{\_}{\EEHole}{\TUnknown}
+    %{\TUnknown^{\EEHole}}
+  }{Hole}
+
+  \judgment{ }{
+    \ctxUniType{\ctx}{\_}{\EFalse/\ETrue}{\TBool}
+  }{False/True}
+
+  \judgment{ 
+    x: \TMV \in \Gamma
+  }{
+    \ctxUniType{\ctx}{\_}{x}{\TMV}
+  }{Var}
+
+    \judgment{ 
+    x: \TMV \not\in \Gamma \\
+  }{
+    \ctxUniType{\ctx}{\_}{x}{\TUnknownErr{free}}
+  }{VarErr}
+ \\\\
+   \judgment{
+    \ctxUniActualType{\ctx}{\TBool}{e_{}}{\_} \\
+    \ctxUniActualType{\ctx}{\TMV_{E}}{e_{cons}}{\TMV_{cons}} \\\\
+    \ctxUniActualType{\ctx}{\TMV_{E}}{e_{alt}}{\TMV_{alt}} \\
+    \consistent{\TMV_{cons}}{\TMV_{alt}}
+  }{
+    \ctxUniType{\ctx}{\TMV_{E}}{\ECIf{\EMV}{\EMV_{cons}}{\EMV_{alt}}}{\TJoin{\TMV_{cons}}{\TMV_{alt}}}
+  }{If}
+  ~~~~~~~~~~~~~~
+  \judgment{
+    \ctxUniActualType{\ctx}{\TBool}{e_{}}{\_} \\
+    \ctxUniActualType{\ctx}{\TMV_{E}}{e_{cons}}{\TMV_{cons}} \\\\
+    \ctxUniActualType{\ctx}{\TMV_{E}}{e_{alt}}{\TMV_{alt}} \\
+    \inconsistent{\TMV_{cons}}{\TMV_{alt}}
+  }{
+    \ctxUniType{\ctx}{\TMV_{E}}{\ECIf{\EMV}{\EMV_{cons}}{\EMV_{alt}}}{\TUnknownErr{internal}}
+  }{IfErr}
+  \\\\
+  \judgment{ 
+    \matchedProd{\TMV_{E}}{\TMV_1}{\TMV_2} \\\\
+    \ctxUniActualType{\ctx}{\TMV_1}{e_1}{\TMV_1'} \\
+    \ctxUniActualType{\ctx}{\TMV_2}{e_2}{\TMV_2'}
+  }{
+    \ctxUniType{\ctx}{\TMV_{E}}{(e_1,e_2)}{\TProd{\TMV_1'}{\TMV_2'}}
+  }{Pair}
+
+   \judgment{
+    \ctxUniActualType{\ctx}{\TArrow{\TUnknown}{\TUnknown}}{\EMV}{\TMV} \\\\
+    \matchedArrow{\TMV}{\TMV_{in}}{\TMV_{out}} \\
+    \ctxUniActualType{\ctx}{\TMV_{in}}{e_{arg}}{\_}
+  }{
+    \ctxUniType{\ctx}{\_}{\EMV(\EMV_{arg})}{\TMV_{out}}
+  }{Ap}  
+
+ \judgment{ 
+    \matchedArrow{\TMV_{E}}{\TMV_1}{\TMV_2} \\\\
+    \ctxUniActualTypePat{\ctx}{\TMV_1}{p}{\TMV_1'}{\ctx'} \\
+    \ctxUniActualType{\ctx'}{\TMV_2}{e}{\TMV_2'}
+  }{
+    \ctxUniType{\ctx}{\TMV_{E}}{\EFun{\PMV}{\EMV}}{\TArrow{\TMV_1'}{\TMV_2'}}
+  }{Fun}
+
+ \judgment{
+    \ctxUniActualTypePat{\ctx}{\TUnknown}{p}{\TMV_p}{\_} \\
+    \ctxUniActualType{\ctx}{\TMV_p}{e_{def}}{\TMV_{def}} \\\\
+    \ctxUniActualTypePat{\ctx}{\TMV_{def}}{p}{\_}{\ctx'} \\
+    \ctxUniActualType{\ctx'}{\TMV_{E}}{e_{}}{\TMV_{}} \\
+  }{
+    \ctxUniType{\ctx}{\TMV_{E}}{\ELet{\PMV}{\EMV_{def}}{\EMV_{}}}{\TMV_{}}
+  }{Let}
+  % TODO: type fn *** (make sure errs dont get into ctx!!)
+  % TODO: type join + distinguish between join variants
+  % TODO: total match judgements
+
+  \\\\
+    \judgment{
+    \ctxUniTypePat{\ctx}{\TMV_{exp}}{\EMV}{\TUnknownErr{err}}{\ctx'}
+  }{
+    \ctxUniActualTypePat{\ctx}{\TMV_{exp}}{\EMV}{\TUnknownErr{err}}{\ctx'}
+  }{PatFixThru}
+  ~~~~~~~~
+  \judgment{
+    \ctxUniTypePat{\ctx}{\TMV_{exp}}{\EMV}{\TMV_{self}}{\ctx'} \\
+    \consistent{\TMV_{exp}}{\TMV_{self}}
+  }{
+    \ctxUniActualTypePat{\ctx}{\TMV_{exp}}{\EMV}{\TJoin{\TMV_{exp}}{\TMV_{self}}}{\ctx'}
+  }{PatFix}
+  ~~~~~~~~
+  \judgment{
+    \ctxUniTypePat{\ctx}{\TMV_{exp}}{\EMV}{\TMV_{self}}{\ctx'} \\
+    \inconsistent{\TMV_{exp}}{\TMV_{self}}
+  }{
+    \ctxUniActualTypePat{\ctx}{\TMV_{exp}}{\EMV}{\TUnknownErr{ins}}{\ctx'}
+  }{PatFixErr}
+  \\\\
+  \judgment{
+  }{
+    \ctxUniTypePat{\ctx}{\_}{\EEHole}{\TUnknown}{\ctx}
+  }{PatHole}
+
+  \judgment{ }{
+    \ctxUniTypePat{\ctx}{\TMV_{E}}{x}{\TMV_{self}}{\ctx, x : \TMV_{E}^{***}}
+  }{PatVar}
+
+  \judgment{
+    \ctxUniActualTypePat{\ctx}{\TMV_{E}}{\PMV}{\_}{\ctx'}
+  }{
+    \ctxUniTypePat{\ctx}{\_}{\PMV: \TMV}{\TMV}{\ctx'}
+  }{PatAnn}
+
+  \judgment{
+    \matchedProd{\TMV_{E}}{\TMV_1}{\TMV_2} \\\\
+    \ctxUniActualTypePat{\ctx}{\TMV_1}{p_1}{\TMV_1'}{\ctx_1} \\
+    \ctxUniActualTypePat{\ctx_1}{\TMV_2}{p_2}{\TMV_2'}{\ctx_2}
+  }{
+    \ctxUniTypePat{\ctx}{\TMV_{E}}{(p_1,p_2)}{\TProd{\TMV_1'}{\TMV_2'}}{\ctx_2}
+  }{PatPair}
+\end{mathpar}
+
+
+
+
+
+
+
+\end{document}
